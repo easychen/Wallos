@@ -405,3 +405,33 @@ function saveNotificationsNtfyButton() {
 
   makeFetchCall('endpoints/notifications/saventfynotifications.php', data, button);
 }
+
+function testNotificationsServerchanButton() {
+  const button = document.getElementById("testNotificationsServerchan");
+  button.disabled = true;
+
+  const enabled = document.getElementById("serverchanenabled").checked ? 1 : 0;
+  const sendkey = document.getElementById("serverchansendkey").value;
+
+  const data = {
+    enabled: enabled,
+    sendkey: sendkey
+  };
+
+  makeFetchCall('endpoints/notifications/testserverchannotifications.php', data, button);
+}
+
+function saveNotificationsServerchanButton() {
+  const button = document.getElementById("saveNotificationsServerchan");
+  button.disabled = true;
+
+  const enabled = document.getElementById("serverchanenabled").checked ? 1 : 0;
+  const sendkey = document.getElementById("serverchansendkey").value;
+
+  const data = {
+    enabled: enabled,
+    sendkey: sendkey
+  };
+
+  makeFetchCall('endpoints/notifications/saveserverchannotifications.php', data, button);
+}

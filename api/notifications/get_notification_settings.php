@@ -174,6 +174,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" || $_SERVER["REQUEST_METHOD"] === "GET
         $notification_settings['webhook_notifications'] = $webhook_notifications;
     }
 
+    // Serverchan notifications
+    $query = "SELECT * FROM serverchan_notifications WHERE user_id = :userId";
+    $stmt = $db->prepare($query);
+    $stmt->bindValue(':userId', $userId);
+    $result = $stmt->execute();
+    $serverchan_notifications = $result->fetchArray(SQLITE3_ASSOC);
+    if ($serverchan_notifications) {
+        unset($serverchan_notifications['user_id']);
+        if (isset($serverchan_notifications['sendkey'])) {
+            $serverchan_notifications['sendkey'] = "********";
+        }
+        $notification_settings['serverchan_notifications'] = $serverchan_notifications;
+    }
+
     $response = [
         "success" => true,
         "title" => "notification_settings",

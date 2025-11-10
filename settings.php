@@ -264,6 +264,24 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
         $notificationsMattermost['bot_icon_emoji'] = "";
     }
 
+    // Serverchan notifications
+    $sql = "SELECT * FROM serverchan_notifications WHERE user_id = :userId LIMIT 1";
+    $stmt = $db->prepare($sql);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+
+    $rowCount = 0;
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $notificationsServerchan['enabled'] = $row['enabled'];
+        $notificationsServerchan['sendkey'] = $row['sendkey'];
+        $rowCount++;
+    }
+
+    if ($rowCount == 0) {
+        $notificationsServerchan['enabled'] = 0;
+        $notificationsServerchan['sendkey'] = "";
+    }
+
     // Ntfy notifications
     $sql = "SELECT * FROM ntfy_notifications WHERE user_id = :userId LIMIT 1";
     $stmt = $db->prepare($sql);
@@ -657,6 +675,34 @@ $userData['currency_symbol'] = $currencies[$main_currency]['symbol'];
                 onClick="testNotificationsMattermostButton()" />
             <input type="submit" class="thin mobile-grow" value="<?= translate('save', $i18n) ?>"
                 id="saveNotificationsMattermost" onClick="saveNotificationsMattermostButton()" />
+        </div>
+    </div>
+</section>
+
+<section class="account-notifications-section">
+    <header class="account-notification-section-header" onclick="openNotificationsSettings('serverchan');">
+        <h3>
+            <i class="fa-solid fa-paper-plane"></i>
+            <?= translate('serverchan', $i18n) ?>
+        </h3>
+    </header>
+    <div class="account-notification-section-settings" data-type="serverchan">
+        <div class="form-group-inline">
+            <input type="checkbox" id="serverchanenabled" name="serverchanenabled"
+                <?= $notificationsServerchan['enabled'] ? "checked" : "" ?>>
+            <label for="serverchanenabled" class="capitalize"><?= translate('enabled', $i18n) ?></label>
+        </div>
+        <div class="form-group-inline">
+            <input type="text" name="serverchansendkey" id="serverchansendkey" autocomplete="off"
+                placeholder="<?= translate('serverchan_sendkey', $i18n) ?>"
+                value="<?= $notificationsServerchan['sendkey'] ? $notificationsServerchan['sendkey'] : '' ?>" />
+        </div>
+        <div class="buttons">
+            <input type="button" class="secondary-button thin mobile-grow"
+                value="<?= translate('test', $i18n) ?>" id="testNotificationsServerchan"
+                onClick="testNotificationsServerchanButton()" />
+            <input type="submit" class="thin mobile-grow" value="<?= translate('save', $i18n) ?>"
+                id="saveNotificationsServerchan" onClick="saveNotificationsServerchanButton()" />
         </div>
     </div>
 </section>

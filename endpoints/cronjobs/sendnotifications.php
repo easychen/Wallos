@@ -65,6 +65,7 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
     $mattermostNotificationsEnabled = false;
     $discordNotificationsEnabled = false;
     $ntfyNotificationsEnabled = false;
+    $serverchanNotificationsEnabled = false;
 
     // Get notification settings (how many days before the subscription ends should the notification be sent)
     $query = "SELECT days FROM notification_settings WHERE user_id = :userId";
@@ -196,9 +197,20 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
         $webhook['ignore_ssl'] = $row["ignore_ssl"];
     }
 
+    // Check if Serverchan notifications are enabled and get the settings
+    $query = "SELECT * FROM serverchan_notifications WHERE user_id = :userId";
+    $stmt = $db->prepare($query);
+    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+
+    if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $serverchanNotificationsEnabled = $row['enabled'];
+        $serverchan['sendkey'] = $row['sendkey'];
+    }
+
     $notificationsEnabled = $emailNotificationsEnabled || $gotifyNotificationsEnabled || $telegramNotificationsEnabled ||
-        $webhookNotificationsEnabled || $pushoverNotificationsEnabled || $discordNotificationsEnabled ||$pushplusNotificationsEnabled||
-        $mattermostNotificationsEnabled || $ntfyNotificationsEnabled;
+        $webhookNotificationsEnabled || $pushoverNotificationsEnabled || $discordNotificationsEnabled || $pushplusNotificationsEnabled ||
+        $mattermostNotificationsEnabled || $ntfyNotificationsEnabled || $serverchanNotificationsEnabled;
 
     // If no notifications are enabled, no need to run
     if (!$notificationsEnabled) {
@@ -803,6 +815,60 @@ while ($userToNotify = $usersToNotify->fetchArray(SQLITE3_ASSOC)) {
                         }
             
                         usleep(1000000); // 1s delay between requests
+                    }
+                }
+            }
+
+            // Serverchan notifications if enabled
+            if ($serverchanNotificationsEnabled) {
+                foreach ($notify as $userId => $perUser) {
+                    // Get name of user from household table
+                    $stmt = $db->prepare('SELECT * FROM household WHERE id = :userId');
+                    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+                    $result = $stmt->execute();
+                    $user = $result->fetchArray(SQLITE3_ASSOC);
+
+                    $title = 'Wallos Notification';
+                    if ($user['name']) {
+                        $message = $user['name'] . ", the following subscriptions are up for renewal:\n";
+                    } else {
+                        $message = "The following subscriptions are up for renewal:\n";
+                    }
+
+                    foreach ($perUser as $subscription) {
+                        $dayText = getDaysText($subscription['days']);
+                        $message .= $subscription['name'] . " for " . $subscription['formatted_price'] . " (" . $dayText . ")\n";
+                    }
+
+                    // Build Serverchan request
+                    $postdata = http_build_query(array('text' => $title, 'desp' => $message));
+
+                    $sendkey = $serverchan['sendkey'];
+                    if (strpos($sendkey, 'sctp') === 0) {
+                        preg_match('/^sctp(\d+)t/', $sendkey, $matches);
+                        $num = $matches[1] ?? '';
+                        $url = "https://{$num}.push.ft07.com/send/{$sendkey}.send";
+                    } else {
+                        $url = "https://sctapi.ftqq.com/{$sendkey}.send";
+                    }
+
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Content-Type: application/x-www-form-urlencoded'
+                    ]);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+                    $response = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+
+                    if ($response === false || $httpCode >= 400) {
+                        echo "Error sending Serverchan notifications: " . ($response === false ? curl_error($ch) : $httpCode) . "<br />";
+                    } else {
+                        echo "Serverchan Notifications sent<br />";
                     }
                 }
             }
